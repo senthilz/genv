@@ -207,6 +207,20 @@ cargo test        # unit tests + end-to-end tests in real bash, zsh and nu (skip
 cargo clippy --all-targets -- -D warnings
 ```
 
+## Acknowledgements
+
+genv is a thin layer on top of other people's work:
+
+- **[gopass](https://github.com/gopasspw/gopass)**, the team password manager
+  that stores and syncs the secrets. genv only calls `gopass show`; all the
+  encryption, storage, git sync and key management is gopass.
+- **[pass](https://www.passwordstore.org/)** by Jason A. Donenfeld, the
+  original "standard unix password manager" that gopass builds on.
+- **[GnuPG](https://gnupg.org/)**, which does the actual decryption.
+
+genv is an independent project and isn't affiliated with or endorsed by the
+gopass project.
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
