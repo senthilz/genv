@@ -1,0 +1,26 @@
+[package]
+name = "genv"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Load environment variables from one gopass entry into bash, zsh or nushell"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "genv"
+path = "src/lib.rs"
+
+[[bin]]
+name = "genv"
+path = "src/main.rs"
+
+# Deliberately no dependencies: one small binary that builds the same on
+# macOS and Linux, and has nothing to audit but this crate.
+[dependencies]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
