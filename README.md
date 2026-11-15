@@ -190,15 +190,60 @@ cargo install --locked --path .          # from a checkout
 The binary is self-contained. Build it once per OS/architecture (macOS
 arm64, Linux x86_64/arm64) and copy it to `~/.local/bin` or `/usr/local/bin`.
 
-## Notes
+## Security model
 
-- **Secrets end up in your shell's environment** and are inherited by every
-  program you start from it. Use `genv-unload` when you're done, or load in a
-  subshell for one command:
-  `( genv-load work/env && terraform plan )` (bash/zsh).
-- genv overwrites the decrypted text in its own memory before exiting. That's
-  a best effort: copies in gopass, gpg-agent and the shell are out of its reach.
-- Nothing is written to disk.
+### What genv protects against
+
+| Risk | How genv handles it |
+|---|---|
+| Secrets committed to a dotfiles repo, or left in plaintext files | Secrets live only in the encrypted gopass store and go straight into the shell's environment. Nothing is written to disk |
+| Stale or duplicated copies after a rotation | Each secret is on exactly one line; `A,B=value` gives one value several names, so rotation is a single edit |
+| A failed load that looks successful (empty or stale variables) | **Fails closed:** if gopass fails or any line is malformed, genv prints nothing and exits 1, so the shell is unchanged |
+| A value being executed when the output is `eval`-ed | Values are always literal and single-quoted (`'` becomes `'\''`). Tests run `$(…)`, backticks, `;`, quotes and newlines through real bash, zsh and nushell and check nothing runs |
+| Secrets shown in errors, listings or logs | Errors name the line and variable, never the value. `genv names` prints names only. `Debug` output hides values |
+| Secrets lingering in a long-lived shell | `genv-unload` removes exactly the names genv set (tracked in `GENV_LOADED`) |
+| Supply-chain risk in the tool itself | No dependencies, `#![forbid(unsafe_code)]`, under 500 lines of Rust including its unit tests |
+
+### What genv does NOT protect against
+
+- **Anything after loading.** Once exported, secrets are in your shell's
+  environment and **every program you start inherits them**. Any process
+  running as you can read another process's environment on most systems.
+  Load in a subshell for one command when you can:
+  `( genv-load work/env && terraform plan )`.
+- **A compromised account or machine.** Anyone who can run commands as you
+  can run `gopass show` too.
+- **Weaknesses in gopass or GPG.** genv relies entirely on them for
+  encryption, key management and access to the store.
+- **Copies outside genv's control.** genv overwrites its own copy of the
+  decrypted text before exiting, as a best effort. Copies in gopass,
+  gpg-agent and your shell are out of its reach.
+- **Organisational controls.** There's no access control, audit log,
+  expiry or rotation enforcement (see below).
+
+### Compliance
+
+genv is **not a compliance solution** and doesn't claim to meet any standard.
+
+It can help with good practice, such as keeping credentials out of source
+code and plaintext files. That's the kind of control secret-handling
+requirements in frameworks like SOC 2, ISO/IEC 27001 and PCI DSS ask for. But
+those frameworks certify an organisation's processes, and they typically
+require things genv deliberately doesn't provide:
+
+- central, per-person access control and revocation;
+- an **audit log** of who accessed which secret, and when;
+- enforced rotation and expiry;
+- documented key management.
+
+If you have compliance obligations, use a managed secrets manager (for
+example HashiCorp Vault, AWS Secrets Manager or 1Password) under your
+organisation's policies, and treat genv as a convenience for personal
+workstations at most.
+
+### Reporting a vulnerability
+
+See [SECURITY.md](SECURITY.md).
 
 ## Development
 
