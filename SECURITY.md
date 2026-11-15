@@ -26,7 +26,7 @@ In scope, for example:
 - genv exporting a partial or wrong set of variables instead of failing;
 - an entry name being interpreted as a gopass option.
 
-Out of scope (see [Security model](README.md#security-model) in the README):
+Out of scope (see [security model](docs/why-and-security.md#security-model)):
 - secrets being visible to other processes once they're in your shell's
   environment;
 - issues in gopass, GPG or your shell itself; please report those upstream;
