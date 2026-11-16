@@ -1,4 +1,4 @@
-//! End to end: the real genv binary, a stand-in gopass (a shell script),
+//! End to end: the real gopass-env binary, a stand-in gopass (a shell script),
 //! and the real bash / zsh / nu. Each shell loads the entry through the
 //! README wrapper, prints every value back, and must get exactly the
 //! original bytes, with no command inside a value executed.
@@ -53,7 +53,7 @@ mod tempdir {
         }
     }
     pub fn new(tag: &str) -> Dir {
-        let p = std::env::temp_dir().join(format!("genv-test-{tag}-{}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("gopass-env-test-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         Dir(p)
@@ -84,13 +84,13 @@ fn have(shell: &str) -> bool {
         .is_ok_and(|o| o.status.success())
 }
 
-fn genv() -> &'static str {
-    env!("CARGO_BIN_EXE_genv")
+fn bin() -> &'static str {
+    env!("CARGO_BIN_EXE_gopass-env")
 }
 
-/// Runs `script` in `shell` with genv and the stub gopass on PATH.
+/// Runs `script` in `shell` with gopass-env and the stub gopass on PATH.
 fn run(shell: &str, args: &[&str], script: &str, fx: &Fixture) -> std::process::Output {
-    let bin_dir = Path::new(genv()).parent().unwrap().display().to_string();
+    let bin_dir = Path::new(bin()).parent().unwrap().display().to_string();
     let path = format!(
         "{}:{bin_dir}:{}",
         fx.dir.0.display(),
@@ -152,14 +152,14 @@ fn bash_and_zsh_round_trip_and_unload() {
         let fx = fixture(shell);
         let script = format!(
             r#"
-genv-load()   {{ local out; out=$(command genv load "$1" --shell sh) && eval "$out"; }}
-genv-unload() {{ local out; out=$(command genv unload --shell sh) && eval "$out"; }}
-genv-load test/entry || exit 9
+gopass-env-load()   {{ local out; out=$(command gopass-env load "$1" --shell sh) && eval "$out"; }}
+gopass-env-unload() {{ local out; out=$(command gopass-env unload --shell sh) && eval "$out"; }}
+gopass-env-load test/entry || exit 9
 for n in {names}; do eval "v=\${{$n}}"; printf '%s\037%s\036' "$n" "$v"; done
 # exported to children, not just set:
 sh -c 'printf "%s\037%s\036" CHILD_SEES "$GH_TOKEN"'
-genv-unload
-[ -z "${{PLAIN+x}}${{GH_TOKEN+x}}${{GENV_LOADED+x}}" ] || {{ echo "unload left variables" >&2; exit 8; }}
+gopass-env-unload
+[ -z "${{PLAIN+x}}${{GH_TOKEN+x}}${{GOPASS_ENV_LOADED+x}}" ] || {{ echo "unload left variables" >&2; exit 8; }}
 "#,
             names = names_list()
         );
@@ -181,13 +181,13 @@ fn nushell_round_trip_and_unload() {
     let fx = fixture("nu");
     let script = format!(
         r#"
-def --env genv-load [entry: string] {{ genv load $entry --shell nu | from json | load-env }}
-def --env genv-unload [] {{ hide-env --ignore-errors ...(genv unload --shell nu | from json) }}
-genv-load test/entry
+def --env gopass-env-load [entry: string] {{ gopass-env load $entry --shell nu | from json | load-env }}
+def --env gopass-env-unload [] {{ hide-env --ignore-errors ...(gopass-env unload --shell nu | from json) }}
+gopass-env-load test/entry
 for n in [{names}] {{ print --no-newline $"($n)(char us)($env | get $n)(char rs)" }}
 print --no-newline $"CHILD_SEES(char us)(sh -c 'printf %s "$GH_TOKEN"')(char rs)"
-genv-unload
-if ('PLAIN' in $env) or ('GENV_LOADED' in $env) {{ error make {{msg: "unload left variables"}} }}
+gopass-env-unload
+if ('PLAIN' in $env) or ('GOPASS_ENV_LOADED' in $env) {{ error make {{msg: "unload left variables"}} }}
 "#,
         names = expected()
             .iter()
@@ -209,10 +209,10 @@ fn failure_prints_nothing_and_loads_nothing() {
         return;
     }
     let fx = fixture("fail");
-    // Unknown entry: the stub fails, so genv must print nothing on stdout.
-    let out = Command::new(genv())
+    // Unknown entry: the stub fails, so gopass-env must print nothing on stdout.
+    let out = Command::new(bin())
         .args(["load", "test/missing"])
-        .env("GENV_GOPASS", fx.dir.0.join("gopass"))
+        .env("GOPASS_ENV_GOPASS", fx.dir.0.join("gopass"))
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -224,9 +224,9 @@ fn failure_prints_nothing_and_loads_nothing() {
         "OK=1\nnot-an-assignment-supersecret\n",
     )
     .unwrap();
-    let out = Command::new(genv())
+    let out = Command::new(bin())
         .args(["load", "test/entry"])
-        .env("GENV_GOPASS", fx.dir.0.join("gopass"))
+        .env("GOPASS_ENV_GOPASS", fx.dir.0.join("gopass"))
         .output()
         .unwrap();
     let err = String::from_utf8_lossy(&out.stderr);
@@ -240,9 +240,9 @@ fn failure_prints_nothing_and_loads_nothing() {
 #[test]
 fn names_never_prints_values() {
     let fx = fixture("names");
-    let out = Command::new(genv())
+    let out = Command::new(bin())
         .args(["names", "test/entry"])
-        .env("GENV_GOPASS", fx.dir.0.join("gopass"))
+        .env("GOPASS_ENV_GOPASS", fx.dir.0.join("gopass"))
         .output()
         .unwrap();
     let s = String::from_utf8(out.stdout).unwrap();

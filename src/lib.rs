@@ -21,9 +21,9 @@
 
 use std::fmt;
 
-/// Variable that records which names genv exported, so `genv unload` can
+/// Variable that records which names gopass-env exported, so `gopass-env unload` can
 /// remove them again. It holds names only, never values.
-pub const LOADED_VAR: &str = "GENV_LOADED";
+pub const LOADED_VAR: &str = "GOPASS_ENV_LOADED";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError {
@@ -101,7 +101,7 @@ pub fn parse(text: &str) -> Result<Vec<Var>, ParseError> {
                 )));
             }
             if name == LOADED_VAR {
-                return Err(err(format!("{LOADED_VAR} is reserved by genv")));
+                return Err(err(format!("{LOADED_VAR} is reserved by gopass-env")));
             }
             if out.iter().any(|v| v.name == name) {
                 return Err(err(format!("{name} is set twice")));
@@ -125,7 +125,7 @@ fn unquote(v: &str) -> &str {
     v
 }
 
-/// Names from `GENV_LOADED` plus `new`, deduplicated, in first-seen order.
+/// Names from `GOPASS_ENV_LOADED` plus `new`, deduplicated, in first-seen order.
 pub fn merge_loaded(existing: Option<&str>, new: &[Var]) -> Vec<String> {
     let mut names: Vec<String> = existing
         .unwrap_or("")
@@ -195,7 +195,7 @@ impl std::str::FromStr for Shell {
     }
 }
 
-/// Output for `genv load`.
+/// Output for `gopass-env load`.
 pub fn render_load(vars: &[Var], loaded: &[String], shell: Shell) -> String {
     let loaded = loaded.join(" ");
     match shell {
@@ -222,7 +222,7 @@ pub fn render_load(vars: &[Var], loaded: &[String], shell: Shell) -> String {
     }
 }
 
-/// Output for `genv unload`: removes every name in `GENV_LOADED`, then itself.
+/// Output for `gopass-env unload`: removes every name in `GOPASS_ENV_LOADED`, then itself.
 pub fn render_unload(loaded: Option<&str>, shell: Shell) -> String {
     let mut names: Vec<&str> = loaded
         .unwrap_or("")
@@ -289,7 +289,7 @@ mod tests {
             ("A-B=supersecret", "line 1: \"A-B\""),
             ("A=1\nA=supersecret", "line 2: A is set twice"),
             ("A,A=supersecret", "line 1: A is set twice"),
-            ("GENV_LOADED=supersecret", "reserved"),
+            ("GOPASS_ENV_LOADED=supersecret", "reserved"),
             ("A=super\0secret", "NUL"),
         ] {
             let e = parse(input).unwrap_err().to_string();
@@ -336,20 +336,20 @@ mod tests {
         let loaded = merge_loaded(None, &v);
         assert_eq!(
             render_load(&v, &loaded, Shell::Sh),
-            "export A='x'\nexport B='it'\\''s'\nexport GENV_LOADED='A B'\n"
+            "export A='x'\nexport B='it'\\''s'\nexport GOPASS_ENV_LOADED='A B'\n"
         );
         assert_eq!(
             render_load(&v, &loaded, Shell::Nu),
-            "{\"A\":\"x\",\"B\":\"it's\",\"GENV_LOADED\":\"A B\"}\n"
+            "{\"A\":\"x\",\"B\":\"it's\",\"GOPASS_ENV_LOADED\":\"A B\"}\n"
         );
         assert_eq!(
             render_unload(Some("A B"), Shell::Sh),
-            "unset A B GENV_LOADED\n"
+            "unset A B GOPASS_ENV_LOADED\n"
         );
-        assert_eq!(render_unload(None, Shell::Nu), "[\"GENV_LOADED\"]\n");
+        assert_eq!(render_unload(None, Shell::Nu), "[\"GOPASS_ENV_LOADED\"]\n");
         assert_eq!(
             render_unload(Some("A $(id)"), Shell::Sh),
-            "unset A GENV_LOADED\n",
+            "unset A GOPASS_ENV_LOADED\n",
             "invalid names dropped"
         );
     }
